@@ -1,0 +1,9 @@
+.row {
+    margin-right: 10px;
+    margin-left: 10px;
+}
+
+.panel.panel-default {
+    border-color: #ddd;
+    /* width: 95%; */
+}
