@@ -85,4 +85,5 @@ def test_connect():
 
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True)
+    socketio.run(app,debug=True)
+    #for public activity add host='0.0.0.0'
