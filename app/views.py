@@ -1,28 +1,14 @@
-﻿"""
+"""
 Routes and views for the flask application.
 """
 
 async_mode = None
 
+
+
 if async_mode is None:
-    try:
-        import eventlet
-
-        async_mode = 'eventlet'
-    except ImportError:
-        pass
-
-    if async_mode is None:
-        try:
-            from gevent import monkey
-
-            async_mode = 'gevent'
-        except ImportError:
-            pass
-
-    if async_mode is None:
-        async_mode = 'threading'
-
+    async_mode = 'threading'
+    
     print('async_mode is ' + async_mode)
 
 if async_mode == 'eventlet':
@@ -35,6 +21,7 @@ elif async_mode == 'gevent':
     monkey.patch_all()
 
 import time
+import RPi.GPIO as GPIO
 from datetime import datetime
 from threading import Thread
 from flask import Flask, render_template, session, request
@@ -45,26 +32,33 @@ app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, async_mode=async_mode)
 thread = None
 
-
-def background_thread():
-    """Example of how to send server generated events to clients."""
-    count = 0
-    while True:
-        time.sleep(2)
-        count += 1
-        socketio.emit('my response',
-                      {'data': 'Server generated event', 'count': count, 'date': str(datetime.now().time())},
+pin = 18
+led_pin = 23
+GPIO.setwarnings(False)
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(pin,GPIO.IN)
+GPIO.setup(led_pin,GPIO.OUT)
+led_state = False
+count = 0
+def eventgpio(pin):
+    global count, led_state, led_pin
+    if (led_state):
+        GPIO.output(led_pin,led_state)
+        led_state = not led_state
+    else:
+        GPIO.output(led_pin,led_state)
+        led_state = not led_state
+    
+    count += 1
+    socketio.emit('my response',
+                      {'data': 'Falling', 'count': count, 'date': str(led_state)},
                       namespace='/test')
-
+    
+GPIO.add_event_detect(pin,GPIO.FALLING,callback = eventgpio,bouncetime = 100)
 
 @app.route('/')
 def index():
     """Renders the home page."""
-    global thread
-    if thread is None:
-        thread = Thread(target=background_thread)
-        thread.daemon = True
-        thread.start()
     return render_template(
             'device.html',
             title='Home Page',
@@ -85,5 +79,4 @@ def test_connect():
 
 
 if __name__ == '__main__':
-    socketio.run(app,debug=True)
-    #for public activity add host='0.0.0.0'
+    socketio.run(app, host = '0.0.0.0')
